@@ -1,0 +1,42 @@
+openapi: 3.0.0
+info:
+  title: Smart Locker API
+  description: Management system for last-mile delivery lockers.
+  version: 1.0.0
+paths:
+  /lockers:
+    get:
+      summary: List all lockers
+      responses:
+        '200':
+          description: A list of lockers and their current status.
+  /lockers/reserve:
+    post:
+      summary: Reserve a locker for a package
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                size:
+                  type: string
+                  enum: [S, M, L]
+                packageId:
+                  type: string
+      responses:
+        '200':
+          description: Reservation successful
+  /lockers/{id}/access-code:
+    get:
+      summary: Retrieve the access code for a specific locker
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The 4-digit access code
