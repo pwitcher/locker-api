@@ -1,0 +1,39 @@
+name: Automated Docs Code Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  validate-snippets:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      # Installs your Express API dependencies so the server can start
+      run: npm install
+
+    - name: Start Locker API Server
+      # Runs app.js in the background (&) so the runner can proceed to the next step
+      run: node app.js &
+
+    - name: Wait for Server to Boot
+      # Polls port 3000 until the server is actually listening (more reliable than a fixed sleep)
+      run: npx wait-on tcp:3000
+
+    - name: Extract Snippet from Markdown
+      run: node extract-and-test.js
+
+    - name: Execute and Verify Snippet
+      # Executes the code that was pulled directly from your quickstart guide
+      run: node temp-tested-sample.js
