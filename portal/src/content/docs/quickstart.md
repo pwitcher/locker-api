@@ -36,7 +36,7 @@ Run the following script to test a successful reservation flow:
 ```javascript
 // test-inline-sample.js
 async function testReservation() {
-  const url = 'http://localhost:3000/lockers/reserve';
+  const url = 'http://localhost:9999/lockers/reserve';
   const payload = { size: 'M' };
 
   try {
