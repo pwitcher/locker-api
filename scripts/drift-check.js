@@ -231,6 +231,7 @@ function evaluate(page) {
     if (!cur.found) {
       r.status = 'REMAP';
       r.notes.push(`${spec}: ${cur.reason}`);
+      r.notes.push(...remapHints(file, scope).map((h) => `  hint: ${h}`));
       continue;
     }
     currentTexts.push(cur.text);
@@ -315,6 +316,128 @@ function nearbyHints(doc) {
     if (dir === '.' || dir === docsRoot || !dir.includes('/')) return [];
     dir = path.posix.dirname(dir);
   }
+}
+
+// ---------- hints: candidate sources and missing sources ----------
+
+// Tracked files that could be sources: not docs, not lockfiles or images,
+// not the map or this script.
+const NOT_CODE = /\.(mdx?|lock|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|pdf)$/i;
+const SELF = toPosix(path.relative(ROOT, __filename));
+let codeFileList = null;
+function codeFiles() {
+  if (codeFileList) return codeFileList;
+  codeFileList = git(['ls-files'])
+    .split('\n')
+    .filter(Boolean)
+    .filter((f) => !f.startsWith(docsRoot + '/') && !NOT_CODE.test(f))
+    .filter((f) => !/(^|\/)(package-lock\.json|pnpm-lock\.yaml|npm-shrinkwrap\.json)$/.test(f))
+    .filter((f) => !['drift-map.yaml', SELF].includes(f));
+  return codeFileList;
+}
+
+const fileTextCache = new Map();
+function codeText(file) {
+  if (!fileTextCache.has(file)) {
+    const text = readAt(ref, file);
+    fileTextCache.set(file, text == null || text.includes('\0') ? null : text);
+  }
+  return fileTextCache.get(file);
+}
+
+// Terms a page quotes that are likely to appear in code: its title and its
+// inline code spans. "POST /lockers/reserve" becomes "/lockers/reserve".
+function pageTerms(docText) {
+  const terms = new Set();
+  const fm = docText.match(/^---\n([\s\S]*?)\n---/);
+  if (fm) {
+    try {
+      const title = YAML.parse(fm[1])?.title;
+      if (title) terms.add(String(title));
+    } catch {
+      // ignore unparseable frontmatter
+    }
+  }
+  const body = (fm ? docText.slice(fm[0].length) : docText).replace(/```[\s\S]*?```/g, '');
+  for (const m of body.matchAll(/`([^`\n]+)`/g)) {
+    let term = m[1].trim();
+    const route = term.match(/^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(\S+)$/i);
+    if (route) term = route[1];
+    if (term.length >= 3) terms.add(term);
+  }
+  return [...terms].slice(0, 50);
+}
+
+// For an unmapped page: search the code for the terms the page quotes and
+// rank files by how many distinct terms they contain. Files in folders that
+// nearby pages already map win ties.
+function candidateSources(doc, nearbySources) {
+  const docText = readAt(null, doc);
+  if (!docText) return [];
+  const terms = pageTerms(docText);
+  if (!terms.length) return [];
+  const lowered = terms.map((t) => t.toLowerCase());
+  const nearDirs = new Set(nearbySources.map((s) => path.posix.dirname(parseSource(s).file)));
+  const results = [];
+  for (const file of codeFiles()) {
+    const text = codeText(file);
+    if (!text) continue;
+    const hits = new Map(); // term index -> first line number
+    text.split('\n').forEach((line, i) => {
+      const l = line.toLowerCase();
+      lowered.forEach((t, k) => {
+        if (!hits.has(k) && l.includes(t)) hits.set(k, i + 1);
+      });
+    });
+    if (!hits.size) continue;
+    const score = hits.size + (nearDirs.has(path.posix.dirname(file)) ? 0.5 : 0);
+    results.push({ file, score, hits: [...hits].map(([k, line]) => ({ term: terms[k], line })) });
+  }
+  return results.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file)).slice(0, 3);
+}
+
+// For a source file that no longer exists: find the commit that removed it and
+// report the new path if it was renamed, or the files that commit added.
+function whereDidFileGo(file) {
+  const from = ref || 'HEAD';
+  const log = (git(['log', from, '--diff-filter=D', '-1', '--format=%h%x09%s', '--', file], { allowFail: true }) || '').trim();
+  if (!log) return [`no commit removed ${file}; if you moved it, commit the move and run the check again`];
+  const [sha, subject] = log.split('\t');
+  const changes = git(['show', '-M', '--name-status', '--format=', sha])
+    .split('\n')
+    .filter(Boolean)
+    .map((l) => l.split('\t'));
+  const renamed = changes.find((c) => c[0].startsWith('R') && c[1] === file);
+  if (renamed) return [`renamed to ${renamed[2]} in ${sha} ("${subject}")`];
+  const added = changes.filter((c) => c[0] === 'A').map((c) => c[1]);
+  return [
+    `removed in ${sha} ("${subject}")`,
+    ...(added.length ? [`files added in that commit: ${added.join(', ')}`] : []),
+  ];
+}
+
+// For a symbol, route, call, or key that's no longer found: search the code
+// for its name.
+function whereIsSymbol(scope) {
+  const route = scope.match(/^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|ALL)\s+(\S+)$/i);
+  const call = scope.match(/^[\w$.]+:(.+)$/);
+  const term = route ? route[1] : call ? call[1] : keySegments(scope).at(-1) || scope;
+  const found = [];
+  for (const file of codeFiles()) {
+    const text = codeText(file);
+    if (!text) continue;
+    text.split('\n').forEach((line, i) => {
+      if (found.length < 3 && line.includes(term)) found.push(`${file}:${i + 1}`);
+    });
+    if (found.length >= 3) break;
+  }
+  return found.length
+    ? [`"${term}" appears in: ${found.join(', ')}`]
+    : [`"${term}" doesn't appear anywhere in the code`];
+}
+
+function remapHints(file, scope) {
+  return readAt(ref, file) == null ? whereDidFileGo(file) : whereIsSymbol(scope);
 }
 
 const pad = (s) => s.padEnd(14);
@@ -411,6 +534,15 @@ for (const d of unmapped) {
   console.log(`${pad('UNMAPPED')}${d}`);
   const hints = nearbyHints(d);
   if (hints.length) console.log(`${pad('')}nearby pages map: ${hints.join(', ')}`);
+  const candidates = candidateSources(d, hints);
+  if (candidates.length) {
+    console.log(`${pad('')}code that quotes this page's terms:`);
+    for (const c of candidates) {
+      const shown = c.hits.slice(0, 4).map((h) => `"${h.term}" (line ${h.line})`);
+      const more = c.hits.length > 4 ? `, +${c.hits.length - 4} more` : '';
+      console.log(`${pad('')}  ${c.file}: ${shown.join(', ')}${more}`);
+    }
+  }
 }
 
 // Print each changed source's diff once, even if several pages share it.
