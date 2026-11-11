@@ -198,8 +198,9 @@ function extractSymbol(text, scope) {
   return { found: false, reason: `symbol "${scope}" not found` };
 }
 
-// Whitespace-only changes don't count as drift.
-const norm = (s) => s.replace(/\s+/g, ' ').trim();
+// Whitespace-only changes don't count as drift: spaces, tabs, and line breaks
+// added, removed, or moved are all ignored.
+const norm = (s) => s.replace(/\s+/g, '');
 
 // ---------- evaluate one page ----------
 
@@ -291,7 +292,7 @@ function scopedDiff(before, after) {
   try {
     out = execFileSync(
       'git',
-      ['-c', 'core.autocrlf=false', 'diff', '--no-index', '--no-color', '-b', '--', a, b],
+      ['-c', 'core.autocrlf=false', 'diff', '--no-index', '--no-color', '-w', '--', a, b],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
     );
   } catch (err) {
