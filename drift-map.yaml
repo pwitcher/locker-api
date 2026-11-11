@@ -1,0 +1,53 @@
+# drift-map.yaml
+#
+# Maps each docs page to the code it documents, so `npm run drift-check`
+# can tell when a page might be out of date.
+#
+# Each page entry has:
+#   doc:         path to the docs page, from the repo root
+#   sources:     the code the page describes. A source is one of:
+#                  file.js                      the whole file
+#                  file.js#NAME                 a function, class, or const/let/var
+#                  file.js#POST /some/path      an Express route handler
+#                  file.ts#callee:firstArg      a call such as registerTool("name", ...)
+#                  file.yaml#a.b[key/with.dots] a key path in a YAML or JSON file
+#                When a source is scoped (has a #), edits elsewhere in the file are ignored.
+#   expects:     (optional) strings the page relies on that must still appear in the
+#                sources, such as a port, a field name, or a message.
+#   verified_at: the commit where someone last confirmed the page matched the code.
+#                `npm run drift-check -- <page> --verify` updates it.
+
+docs_root: portal/src/content/docs
+
+pages:
+  - doc: portal/src/content/docs/quickstart.md
+    sources:
+      - app.js#PORT
+      - app.js#POST /lockers/reserve
+      - openapi.yaml#paths[/lockers/reserve]
+      - package.json#scripts
+    expects:
+      - "3000"
+      - "Locker reserved successfully"
+      - lockerId
+      - accessCode
+      - size
+    verified_at: "2825b3f"
+
+  - doc: portal/src/content/docs/concepts/system-overview.md
+    sources:
+      - app.js#lockers
+      - app.js#POST /lockers/reserve
+    expects:
+      - available
+      - reserved
+      - "1000 + Math.random() * 9000"
+    verified_at: "2825b3f"
+
+  - doc: portal/src/content/docs/reference/troubleshooting.md
+    sources:
+      - app.js#POST /lockers/reserve
+      - mcp-server/src/index.ts#registerTool:check_locker_status
+    expects:
+      - "404"
+      - check_locker_status
