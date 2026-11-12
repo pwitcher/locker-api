@@ -27,7 +27,7 @@ pages:
       - openapi.yaml#paths[/lockers/reserve]
       - package.json#scripts
     expects:
-      - "3000"
+      - "8080"
       - "Locker reserved successfully"
       - lockerId
       - accessCode
