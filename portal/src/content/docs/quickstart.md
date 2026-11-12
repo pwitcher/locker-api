@@ -15,7 +15,7 @@ Before running the code below, ensure your local locker server is running. There
 node app.js
 ```
 
-The API will be available at `http://localhost:3000`.
+The API will be available at `http://localhost:8080`.
 
 ## Reserving a Locker
 
@@ -36,7 +36,7 @@ Run the following script to test a successful reservation flow:
 ```javascript
 // test-inline-sample.js
 async function testReservation() {
-  const url = 'http://localhost:3000/lockers/reserve';
+  const url = 'http://localhost:8080/lockers/reserve';
   const payload = { size: 'M' };
 
   try {

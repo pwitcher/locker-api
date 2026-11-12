@@ -11,7 +11,7 @@ let lockers = [
 
 // GET /lockers - List all lockers
 app.get('/lockers', (req, res) => {
-  res.json(lockers);
+  res.json({ lockers });
 });
 
 // POST /lockers/reserve - Reserve a locker
@@ -41,5 +41,5 @@ app.get('/lockers/:id/access-code', (req, res) => {
   res.json({ lockerId: locker.id, code: locker.code });
 });
 
-const PORT = 3000;
+const PORT = 8080;
 app.listen(PORT, () => console.log(`Smart Locker API running on http://localhost:${PORT}`));
