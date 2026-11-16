@@ -7,7 +7,7 @@ This guide will walk you through interacting with the Smart Locker API programma
 
 ## Prerequisites
 
-Before running the code below, ensure your local locker server is running. There is no `dev` script defined yet, so start the server directly:
+Before running the code below, start your local locker server:
 
 ```bash
 node app.js
