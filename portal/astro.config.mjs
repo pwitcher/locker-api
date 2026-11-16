@@ -7,9 +7,10 @@ export default defineConfig({
             title: 'Smart Locker Portal',
             // Updated social syntax: link is now href
             social: [
-                { label: 'GitHub', href: 'https://github.com/your-username/locker-api', icon: 'github' }
+                { label: 'GitHub', href: 'https://github.com/pwitcher/locker-api', icon: 'github' }
             ],
             sidebar: [
+                { label: 'Quickstart', slug: 'quickstart' },
                 {
                     label: 'Concepts',
                     autogenerate: { directory: 'concepts' },
