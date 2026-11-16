@@ -25,7 +25,6 @@ pages:
       - app.js#PORT
       - app.js#POST /lockers/reserve
       - openapi.yaml#paths[/lockers/reserve]
-      - package.json#scripts
     expects:
       - "3000"
       - "Locker reserved successfully"
