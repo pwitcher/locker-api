@@ -3,8 +3,6 @@ title: Quickstart Guide
 description: Learn how to make your first API call to reserve a smart locker.
 ---
 
-# Quickstart Guide
-
 This guide will walk you through interacting with the Smart Locker API programmatically using JavaScript.
 
 ## Prerequisites
