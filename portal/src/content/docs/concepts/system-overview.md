@@ -3,8 +3,6 @@ title: System Overview
 description: Understanding the Smart Locker architecture and states.
 ---
 
-# Smart Locker System Overview
-
 The Smart Locker API manages a fleet of physical storage units for last-mile delivery. 
 
 ## Locker States
